@@ -1,0 +1,13 @@
+import ResilientImage from '../components/resilient-image';
+import SiteFooter from '../components/site-footer';
+﻿import Link from 'next/link';
+import {ArrowLeft,ArrowUpRight,Film,Layers3,Search} from 'lucide-react';
+import {listReleases} from '../../lib/store';
+import {availableCollections} from '../../lib/library';
+import {normalizeSearch} from '../../lib/catalog-search';
+export const dynamic='force-dynamic';
+export const metadata={title:'Movie collections | VITOENCODES',description:'Explore movie franchises and their available encodes in the VITOENCODES archive.'};
+export default async function Collections({searchParams}:{searchParams:Promise<{q?:string}>}){
+ const params=await searchParams,query=typeof params.q==='string'?params.q.slice(0,200):'',all=availableCollections((await listReleases(true))),words=normalizeSearch(query).split(' ').filter(Boolean),groups=all.filter(group=>words.every(word=>normalizeSearch(group.name).includes(word)));
+ return <div className="film-page" id="top"><header className="archive-header"><Link className="archive-brand" href="/">VITO<b>ENCODES</b></Link><Link className="film-back" href="/"><ArrowLeft size={16}/> New encodes</Link></header><main className="film-container collection-page"><span className="film-small-label">FOLLOW THE STORY</span><div className="collection-heading"><div><h1>Movie collections</h1><p>Every chapter. Every available encode. Explore the films together.</p></div><Layers3 size={42}/></div><form className="collections-search" action="/collections"><Search size={18}/><input name="q" defaultValue={query} maxLength={200} placeholder="Find a movie collection" aria-label="Search movie collections"/><button type="submit">Search</button>{query&&<Link href="/collections">Clear</Link>}</form><p className="collections-result-count">{groups.length} of {all.length} collections</p><div className="collection-movie-grid collections-index">{groups.map(group=><Link href={'/collections/'+group.slug} key={group.slug}><div className="collection-movie-art">{group.poster?<ResilientImage src={group.poster} alt={group.name+' poster'} loading="lazy"/>:<Film size={50}/>}<span>{group.count} {group.count===1?'movie':'movies'}</span></div><h2>{group.name}</h2><span className="collection-view">Explore collection <ArrowUpRight size={14}/></span></Link>)}</div>{!groups.length&&<div className="archive-empty"><Layers3 size={32}/><h2>{query?'No matching collections.':'Collections are on their way.'}</h2><p>{query?'Try a shorter collection name.':'Collections appear here when matching movies are published.'}</p><Link href={query?'/collections':'/'}>{query?'Show all collections':'Browse new encodes'}</Link></div>}<SiteFooter/></main></div>;
+}

@@ -1,0 +1,2 @@
+﻿import {dateLabel,timestamp} from '../../lib/release-dates';
+export default function ReleaseDates({created_at,updated_at}:{created_at?:string|null;updated_at?:string|null}){return <div className="release-dates"><span>Added <time dateTime={timestamp(created_at)?.toISOString()}>{dateLabel(created_at)}</time></span><span>Updated <time dateTime={timestamp(updated_at)?.toISOString()}>{dateLabel(updated_at)}</time></span></div>;}

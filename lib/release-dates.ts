@@ -1,0 +1,5 @@
+﻿export type ReleaseDates={created_at?:string|null;updated_at?:string|null};
+export function timestamp(value?:string|null){if(!value)return null;const normalized=/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(value)?value.replace(' ','T')+'Z':value;const date=new Date(normalized);return Number.isFinite(date.getTime())?date:null;}
+export function dateLabel(value?:string|null){const date=timestamp(value);return date?new Intl.DateTimeFormat('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',hourCycle:'h23',timeZone:'Asia/Karachi'}).format(date)+' PKT':'Not recorded';}
+export function newestFirst(a:ReleaseDates,b:ReleaseDates){return (timestamp(b.created_at)?.getTime()||0)-(timestamp(a.created_at)?.getTime()||0);}
+export function groupDates(rows:ReleaseDates[]){const latest=(key:keyof ReleaseDates)=>rows.map(row=>row[key]).filter((value):value is string=>Boolean(timestamp(value))).sort((a,b)=>timestamp(b)!.getTime()-timestamp(a)!.getTime())[0];return {created_at:latest('created_at'),updated_at:latest('updated_at')};}

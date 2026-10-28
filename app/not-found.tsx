@@ -1,0 +1,3 @@
+﻿import Link from 'next/link';
+import {ArrowLeft,Layers3} from 'lucide-react';
+export default function NotFound(){return <main className="route-state"><span className="route-state-mark" aria-hidden="true">V.</span><span className="film-small-label">404 / OUT OF FRAME</span><h1>That page is not in the archive.</h1><p>The link may have changed, or the release may no longer be published. Browse the archive to find an available encode.</p><div><Link href="/"><ArrowLeft size={18}/> Browse encodes</Link><Link href="/collections"><Layers3 size={18}/> Movie collections</Link></div><Link className="route-state-help" href="/contact">Report a broken link</Link></main>;}

@@ -1,0 +1,24 @@
+﻿import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtempSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import path from 'node:path';
+import {addRelease,listReleases,updateRelease} from '../lib/store.ts';
+import {changeVisibility} from '../lib/publishing.ts';
+test('bulk publication validates the entire selection before changing visibility',async ()=>{
+ process.env.DATA_DIRECTORY=mkdtempSync(path.join(tmpdir(),'vito-publishing-'));
+ for(const id of ['ready','missing'])(await addRelease({id,filename:id+'.VITO.mkv',title:id,year:2024,category:'IMAX',resolution:'1080p',size:'1 GB'}));
+ (await updateRelease('ready','ready',[{label:'HubDrive',url:'https://hubdrive.bar/file/123'}],'draft'));
+ (await assert.rejects(async ()=>(await changeVisibility(['ready','missing'],'published')),/mirror/));
+ assert.equal((await listReleases(true)).length,0);
+ (await assert.rejects(async ()=>(await changeVisibility(['ready','unknown'],'published')),/no longer exists/));
+ assert.equal((await listReleases(true)).length,0);
+ assert.equal((await changeVisibility(['ready','ready'],'published')),1);
+ assert.equal((await listReleases(true)).length,1);
+ const published=(await listReleases(true))[0];assert.equal(published.links[0].url,'https://hubdrive.bar/file/123');
+ assert.equal((await changeVisibility(['ready'],'draft')),1);
+ assert.equal((await listReleases(true)).length,0);
+ assert.equal((await listReleases()).find(r=>r.id==='ready')?.links.length,1);
+ (await assert.rejects(async ()=>(await changeVisibility([],'published')),/Select/));
+ (await assert.rejects(async ()=>(await changeVisibility(['ready'],'invalid' as 'published')),/visibility/));
+});

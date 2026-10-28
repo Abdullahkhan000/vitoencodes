@@ -1,0 +1,20 @@
+services:
+  web:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file: .env.local
+    volumes:
+      - catalog:/app/data
+    restart: unless-stopped
+  worker:
+    build: .
+    env_file: .env.local
+    environment:
+      SITE_URL: http://web:3000
+    command: ["node", "scripts/sync-worker.mjs"]
+    depends_on:
+      - web
+    restart: unless-stopped
+volumes:
+  catalog:
