@@ -93,7 +93,7 @@ Bulk **Preview batch** now requests Linkify movie information and displays a pos
 
 A provider error does not prevent saving valid drafts: missing movie information is labelled pending and can be retried from the library. The metadata importer stops making further provider calls in the batch after a connection/quota failure. In this restricted workspace, the live Linkify connection currently fails with `EACCES` (outbound network permission denied). Automated tests cover the provider-success path using verified response-shaped fixtures; actual live enrichment still requires running the server in an environment with outbound HTTPS access.
 
-Movie collections use Linkify’s `belongs_to_collection` metadata and appear on `/collections/{slug}`, the homepage and movie detail pages. The requested Dune (2021) / Dune: Part Two (2024) pairing also has an explicit year-bound fallback. Collections only contain published movies; multiple encodes of one movie appear as versions on its detail page. Other franchises are never guessed from a shared title prefix.
+Movie collections use Linkifyï¿½s `belongs_to_collection` metadata and appear on `/collections/{slug}`, the homepage and movie detail pages. The requested Dune (2021) / Dune: Part Two (2024) pairing also has an explicit year-bound fallback. Collections only contain published movies; multiple encodes of one movie appear as versions on its detail page. Other franchises are never guessed from a shared title prefix.
 
 Genres come from imported or manually entered movie details. Public genre links and the library genre filter use those values. Recommendations require a shared genre, rank movies by genre overlap, exclude the current movie and duplicate editions, and never expose drafts. Same-series movies have their own collection section. When no genre match exists, no unrelated recommendations are inserted.
 
@@ -189,5 +189,3 @@ Skip db:import for a fresh database with no SQLite catalog. The importer opens S
 Unit tests run with disposable SQLite files and explicitly clear database URLs. The live test starts the production app, checks Postgres persistence, draft privacy, publishing, movie rendering, caches/settings, and contact/inbox resolution. It creates uniquely named temporary records and removes only those records when finished. The live test requires an applied schema and outbound database access.
 
 Current validation: 74 unit tests and the production build passed. The production server starts. Live migration and verification are blocked in the agent terminal by outbound EACCES; browser authentication does not lift that restriction. Remote provisioning, schema application, data import, and full Neon verification are not yet confirmed. Run the launcher from a normal Windows terminal with network access to finish.
-
-
