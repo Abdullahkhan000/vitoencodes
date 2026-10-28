@@ -7,4 +7,4 @@ data/
 *.tsbuildinfo
 .neon
 .vercel/
-
+.cmd
