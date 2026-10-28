@@ -1,6 +1,7 @@
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
+import {syncRemoteMain} from './github-sync.mjs';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const repository='https://github.com/Abdullahkhan000/vitoencodes.git';
@@ -46,10 +47,12 @@ try{
  git(['ls-remote','origin','HEAD'],{capture:true});
  const branch=git(['branch','--show-current'],{capture:true});
  if(branch!=='main')git(['branch','-m','main']);
+ if(git(['rev-parse','-q','--verify','MERGE_HEAD'],{capture:true,allowed:[0,1]}))throw new Error('An earlier merge is unfinished. Resolve its conflicts and commit before retrying.');
  git(['add','--all']);
  const files=checkStagedFiles();
  if(files.length)git(['commit','-m','Set up VITOENCODES with Neon Postgres']);
  git(['rev-parse','--verify','HEAD'],{capture:true});
+ syncRemoteMain(git,root,checkStagedFiles);
  git(['push','--set-upstream','origin','main']);
  console.log('Repository pushed: https://github.com/Abdullahkhan000/vitoencodes');
 }catch(error){console.error(error.message);process.exitCode=1;}
