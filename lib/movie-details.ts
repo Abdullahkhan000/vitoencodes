@@ -1,5 +1,5 @@
 import {classifySource} from './encode-source.ts';
-export type MovieDetails={synopsis?:string;genres?:string;runtime?:string;director?:string;cast?:string;trailer?:string;screenshots?:string[];stills?:string[];backdrop?:string;imdbId?:string;tmdbId?:number;tmdbRating?:number;metadataProvider?:string;metadataFetchedAt?:string;poster?:string;officialTitle?:string;collection?:{id:number|string;name:string;poster?:string}};
+export type MovieDetails={primaryReleaseId?:string;genresEdited?:boolean;synopsis?:string;genres?:string;runtime?:string;director?:string;cast?:string;trailer?:string;screenshots?:string[];stills?:string[];backdrop?:string;imdbId?:string;tmdbId?:number;tmdbRating?:number;metadataProvider?:string;metadataFetchedAt?:string;poster?:string;officialTitle?:string;collection?:{id:number|string;name:string;poster?:string}};
 export function validateMovieDetails(value:unknown):MovieDetails{
  if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('Movie details must be an object.');
  const source=value as Record<string,unknown>,details:MovieDetails={};

@@ -17,6 +17,13 @@ export function sameMovie(a:LibraryMovie,b:LibraryMovie){
  if(a.details?.tmdbId&&b.details?.tmdbId)return a.details.tmdbId===b.details.tmdbId;
  return a.year===b.year&&[a.title,movieTitle(a)].some(title=>[b.title,movieTitle(b)].some(other=>normalizeMovieTitle(title)===normalizeMovieTitle(other)));
 }
+export function preferredRelease<T extends LibraryMovie>(releases:T[]):T|undefined{
+ for(const row of releases){
+  const id=row.details?.primaryReleaseId;
+  if(id){const selected=releases.find(candidate=>candidate.id===id&&candidate.status!=='draft');if(selected)return selected;}
+ }
+ return undefined;
+}
 export function groupMovieReleases<T extends LibraryMovie>(rows:T[]):{movie:T;releases:T[]}[]{
  const sets:T[][]=[];const known=new Map<number,T[]>();
  for(const row of rows){const id=row.details?.tmdbId;if(id){let group=known.get(id);if(!group){group=[];known.set(id,group);sets.push(group);}group.push(row);}}
@@ -28,9 +35,9 @@ export function groupMovieReleases<T extends LibraryMovie>(rows:T[]):{movie:T;re
  }
  return sets.map(group=>{
   const releases=[...group].sort((a,b)=>(a.created_at||'').localeCompare(b.created_at||'')||a.id.localeCompare(b.id));
-  const primary=releases[0],info=[...releases].sort((a,b)=>Number(Boolean(b.details?.officialTitle))+Number(Boolean(b.poster))-Number(Boolean(a.details?.officialTitle))-Number(Boolean(a.poster)))[0];
+  const primary=preferredRelease(releases)||releases[0],info=[...releases].sort((a,b)=>Number(Boolean(b.details?.officialTitle))+Number(Boolean(b.poster))-Number(Boolean(a.details?.officialTitle))-Number(Boolean(a.poster)))[0];
   const {screenshots,...shared}=info.details||{};
-  const movie={...primary,title:movieTitle(info),poster:primary.poster||info.poster,details:{...shared,...primary.details}} as T;
+  const movie={...primary,id:releases[0].id,title:movieTitle(info),poster:primary.poster||info.poster,details:{...shared,...primary.details}} as T;
   return {movie,releases};
  }).sort((a,b)=>rows.findIndex(row=>a.releases.includes(row))-rows.findIndex(row=>b.releases.includes(row)));
 }

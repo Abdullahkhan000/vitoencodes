@@ -2,7 +2,7 @@ import {newestFirst} from '../../../lib/release-dates';
 ﻿import {notFound,redirect} from 'next/navigation';
 import {catalog} from '../../../lib/catalog';
 import {listReleases} from '../../../lib/store';
-import {collectionMovies,genreRecommendations,groupMovieReleases,movieCollection,movieRouteId,movieTitle} from '../../../lib/library';
+import {preferredRelease,collectionMovies,genreRecommendations,groupMovieReleases,movieCollection,movieRouteId,movieTitle} from '../../../lib/library';
 import MovieDetail from './movie-detail';
 export const dynamic='force-dynamic';
 const poster=(value:string,id:string,demo=false)=>demo?'/posters/'+id+'.jpg':value.startsWith('/')||value.startsWith('https://')?value:value?'https://image.tmdb.org/t/p/w780/'+value:'';
@@ -13,7 +13,7 @@ export default async function Movie({params,searchParams}:{params:Promise<{id:st
  const demo=catalog.find(r=>r.id===id);if(!group&&!demo)notFound();
  if(group&&movieRouteId(group.movie)!==id)redirect('/movies/'+encodeURIComponent(movieRouteId(group.movie))+'?release='+encodeURIComponent(id));
  const requested=(await searchParams).release;
- const initial=group?.releases.find(r=>r.id===requested)||(group?[...group.releases].sort(newestFirst)[0]:undefined);
+ const initial=group?.releases.find(r=>r.id===requested)||(group?preferredRelease(group.releases)||[...group.releases].sort(newestFirst)[0]:undefined);
  const release=group&&initial?{...group.movie,...initial,title:movieTitle(group.movie),poster:poster(group.movie.poster||'',group.movie.id),details:group.movie.details,codec:''}:{...demo!,filename:'',links:[],status:'preview',details:{},poster:poster('',demo!.id,true)};
  const alternatives=group?group.releases.map(r=>({...r,poster:poster(r.poster||'',r.id),codec:''})):[release];
  const card=(r:typeof published[number])=>({id:movieRouteId(r),title:movieTitle(r),year:r.year,category:r.category,resolution:r.resolution,size:r.size,poster:poster(r.poster||'',r.id),genres:r.details?.genres||''});

@@ -38,6 +38,7 @@ export function mergeImportedDetails(current:MovieDetails,imported:MovieDetails)
  const result={...current};
  for(const [key,value] of Object.entries(imported)){
   const name=key as keyof MovieDetails;
+  if(key==='genres'&&current.genresEdited)continue;
   if(['metadataProvider','metadataFetchedAt','tmdbId','tmdbRating','imdbId','poster','collection','officialTitle'].includes(key)||result[name]===undefined||result[name]===''||(Array.isArray(result[name])&&!(result[name] as unknown[]).length))Object.assign(result,{[key]:value});
  }
  return result;

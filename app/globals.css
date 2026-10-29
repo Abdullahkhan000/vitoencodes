@@ -122,3 +122,10 @@ input::placeholder,textarea::placeholder{color:#aaa;opacity:1}
 .archive-search .archive-search-shortcut{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;min-height:36px;padding:3px;border-radius:5px}
 .archive-search .archive-search-shortcut:hover kbd{color:#fff;border-color:#999}
 .archive-search .archive-search-shortcut:focus-visible{outline:2px solid #eee;outline-offset:2px}
+.drawer-release-controls{margin:22px 0;padding:20px;border:1px solid #ffffff24;border-radius:9px;background:#ffffff04}
+.drawer-release-controls h3{font-size:16px;font-weight:500;line-height:1.5;margin:0 0 20px}
+.drawer-release-controls label:last-child{margin-bottom:0}
+.studio-main-release-badge{display:inline-block;margin:0 7px 5px 0;padding:2px 6px;border:1px solid #ffffff40;border-radius:4px;font-size:12px;font-weight:500;color:#eee}
+.archive-tabs{flex-wrap:wrap}
+.archive-tabs>button{max-width:100%;overflow-wrap:anywhere}
+.archive-card-facts>span{min-width:0;overflow-wrap:anywhere}

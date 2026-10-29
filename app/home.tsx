@@ -12,14 +12,13 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { ArrowDown, ArrowUpRight, Search, X, Film, Grid2X2, List, Command, Layers3, Bookmark, Download, Settings2 } from 'lucide-react';
-import {availableCollections,movieGenres,movieCollection,groupMovieReleases,movieRouteId,movieTitle} from '../lib/library';
+import {preferredRelease,availableCollections,movieGenres,movieCollection,groupMovieReleases,movieRouteId,movieTitle} from '../lib/library';
 import type {MovieDetails} from '../lib/movie-details';
 import { classifySource, encodeSources } from '../lib/encode-source';
 import { catalog } from '../lib/catalog';
 
 type Movie = Omit<typeof catalog[number],'year'> & {year:number|null} & { links?: { label: string; url: string }[]; live?: boolean; filename?: string;status?:string;details?:MovieDetails;releases?:Movie[];releaseCount?:number;created_at?:string;updated_at?:string|null;size_bytes?:number|null;matchingReleases?:Movie[] };
 const image = (movie: Movie) => movie.poster ? ((movie.poster.startsWith('/') || movie.poster.startsWith('https://')) ? movie.poster : posterIds.has(movie.id) ? '/posters/' + movie.id + '.jpg' : 'https://image.tmdb.org/t/p/w780/' + movie.poster) : '';
-const formats = ['All releases', 'IMAX', 'Open Matte', '35mm'];
 
 const posterIds = new Set(catalog.map(m => m.id));
 
@@ -125,16 +124,17 @@ export default function Home({initialReleases=[],initialFilters={}}:{initialRele
   }, [selected, searchOpen]);
 
   const movieGroups=groupMovieReleases(entries);
-  const cards:Movie[]=movieGroups.map(({movie,releases})=>({...movie,...[...releases].sort(newestFirst)[0],poster:movie.poster,details:movie.details,id:movieRouteId(movie),title:movieTitle(movie),releases,releaseCount:releases.length,...groupDates(releases)})).sort(newestFirst);
+  const cards:Movie[]=movieGroups.map(({movie,releases})=>({...movie,...(preferredRelease(releases)||[...releases].sort(newestFirst)[0]),poster:movie.poster,details:movie.details,id:movieRouteId(movie),title:movieTitle(movie),releases,releaseCount:releases.length,...groupDates(releases)})).sort(newestFirst);
   const genres=[...new Set(cards.flatMap(movieGenres))].sort();
   const collections=availableCollections(entries);
+  const formats=['All releases','IMAX','Open Matte','35mm',...[...new Set(entries.map(row=>row.category))].filter(value=>value&&!['IMAX','Open Matte','35mm','Other'].includes(value))];
   const years=[...new Set(cards.map(movie=>movie.year).filter((year):year is number=>year!==null))].sort((a,b)=>b-a);
   const matchesRelease=(r:Movie)=>(sourceFilter==='All sources'||classifySource(r.filename||'')===sourceFilter)&&(!codecFilter||r.codec.includes(codecFilter))&&(filter==='All releases'||r.category===filter)&&(quality==='All resolutions'||r.resolution===quality);
   const searchScore=createMovieSearch(entries,query);
   const movies=cards.flatMap(movie=>{
     const releases=movie.releases||[movie],matching=[...releases].sort(newestFirst).filter(r=>matchesRelease(r)&&searchScore({...r,details:movie.details,title:movie.title})>0);
     if(!matching.length||(genre!=='All genres'&&!movieGenres(movie).some(value=>value.toLowerCase()===genre.toLowerCase()))||(collectionFilter!=='All collections'&&movieCollection(movie)?.slug!==collectionFilter)||(onlySaved&&!saved.includes(movie.id)&&!releases.some(r=>saved.includes(r.id)))||(year!=='All years'&&String(movie.year)!==year))return [];
-    return [{...matching[0],id:movie.id,title:movie.title,poster:movie.poster,details:movie.details,releases,matchingReleases:matching,releaseCount:releases.length,...groupDates(matching)}];
+    return [{...(preferredRelease(matching)||matching[0]),id:movie.id,title:movie.title,poster:movie.poster,details:movie.details,releases,matchingReleases:matching,releaseCount:releases.length,...groupDates(matching)}];
   }).sort((a,b)=>sort==='Title A–Z'?a.title.localeCompare(b.title):sort==='Release year'?(b.year||0)-(a.year||0):query.trim()?Math.max(...(b.releases||[b]).filter(matchesRelease).map(r=>searchScore({...r,details:b.details,title:b.title})))-Math.max(...(a.releases||[a]).filter(matchesRelease).map(r=>searchScore({...r,details:a.details,title:a.title}))):newestFirst(a,b));
   const pagingKey=JSON.stringify([query,genre,collectionFilter,sourceFilter,filter,quality,codecFilter,year,sort,onlySaved,pageSize]);
   const pageData=paginate(movies,paging.key===pagingKey?paging.page:1,pageSize);
@@ -188,7 +188,7 @@ export default function Home({initialReleases=[],initialFilters={}}:{initialRele
               <div className="archive-filters"><label><span>GENRE</span><select value={genre} onChange={e=>setGenre(e.target.value)} aria-label="Genre"><option>All genres</option>{genres.map(value=><option key={value}>{value}</option>)}{genre!=='All genres'&&!genres.includes(genre)&&<option>{genre}</option>}</select></label><label><span>QUALITY</span><select value={quality} onChange={e=>setQuality(e.target.value)} aria-label="Resolution"><option>All resolutions</option>{['2160p','1440p','1080p','720p'].map(value=><option key={value}>{value}</option>)}</select></label><label><span>CODEC</span><select value={codecFilter} onChange={e=>setCodecFilter(e.target.value)} aria-label="Codec"><option value="">All codecs</option><option>HEVC</option><option>AV1</option><option>H.264</option></select></label><label><span>YEAR</span><select value={year} onChange={e=>setYear(e.target.value)} aria-label="Release year"><option>All years</option>{years.map(value=><option key={value}>{value}</option>)}</select></label><button onClick={reset} title="Reset all filters"><X size={14}/> Reset</button></div>
               <ActiveFilters filters={activeFilters} clear={()=>{reset();setSort('Latest added');}}/><div className="archive-results" role="status" aria-live="polite"><span>{movies.length} {movies.length===1?'movie':'movies'}{query?' matching “'+query+'”':''}</span><select value={sort} onChange={e=>setSort(e.target.value)} aria-label="Sort releases"><option>Latest added</option><option>Title A–Z</option><option>Release year</option></select></div>
               <div className={'archive-grid '+(view==='list'?'archive-list':'')}>{pageData.items.map(movie=>{
-                const options=movie.matchingReleases||movie.releases||[movie],badge=freshness(movie,now);
+                const options=movie.matchingReleases||movie.releases||[movie],badge=freshness(movie,now),primary=preferredRelease(options);
                 return <article className="archive-card archive-card-compact" key={movie.id}>
                   <div className="archive-card-art">
                     <Link className="archive-card-open" href={'/movies/'+encodeURIComponent(movie.id)} aria-label={'View '+movie.title}>
@@ -203,9 +203,9 @@ export default function Home({initialReleases=[],initialFilters={}}:{initialRele
                     <div className="archive-card-facts">
                       {movie.year&&<span>{movie.year}</span>}
                       {movie.resolution!=='Unknown'&&<span>{movie.resolution}</span>}
-                      {['IMAX','Open Matte','35mm'].includes(movie.category)&&<span>{movie.category}</span>}
+                      {movie.category&&movie.category!=='Other'&&<span>{movie.category}</span>}
                     </div>
-                    <div className="archive-card-summary"><span>{compactSize(options)}</span><span>{options.length} {options.length===1?'encode':'encodes'}</span></div>
+                    <div className="archive-card-summary"><span>{primary?primary.size:compactSize(options)}</span><span>{options.length} {options.length===1?'encode':'encodes'}</span></div>
                   </Link>
                 </article>;
               })}</div>

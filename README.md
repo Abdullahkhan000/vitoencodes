@@ -188,4 +188,10 @@ Skip db:import for a fresh database with no SQLite catalog. The importer opens S
 
 Unit tests run with disposable SQLite files and explicitly clear database URLs. The live test starts the production app, checks Postgres persistence, draft privacy, publishing, movie rendering, caches/settings, and contact/inbox resolution. It creates uniquely named temporary records and removes only those records when finished. The live test requires an applied schema and outbound database access.
 
-Current validation: 74 unit tests and the production build passed. The production server starts. Live migration and verification are blocked in the agent terminal by outbound EACCES; browser authentication does not lift that restriction. Remote provisioning, schema application, data import, and full Neon verification are not yet confirmed. Run the launcher from a normal Windows terminal with network access to finish.
+Current validation: 92 unit tests and the production build passed. The production server starts. Live migration and verification are blocked in the agent terminal by outbound EACCES; browser authentication does not lift that restriction. Remote provisioning, schema application, data import, and full Neon verification are not yet confirmed. Run the launcher from a normal Windows terminal with network access to finish.
+
+### Main release, formats and genres
+
+In Studio > Encode library > Edit, use Movie & release settings to select a Main release from that movie's published encodes. Automatic uses the latest published encode. The selection controls the homepage, default movie-page encode and saved shelf; visitors can still choose another version. Unpublishing the chosen encode falls back to another published release.
+
+Format / edition edits the current encode's category (Open Matte, IMAX, 35mm, Other, or a custom format). Custom formats appear in the public format filters and admin library. Movie genres are comma-separated and apply to all encodes grouped as the same movie, including drafts. Metadata refresh preserves the admin's main-release choice and edited genres. These settings use the existing database metadata fields and require no schema migration.
