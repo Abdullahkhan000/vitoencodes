@@ -5,7 +5,7 @@ import SiteFooter from './components/site-footer';
 
 import {newestFirst,groupDates,timestamp} from '../lib/release-dates';
 import Pagination from './components/pagination';
-import {paginate,releaseSearchScore} from '../lib/catalog-search';
+import {paginate,createMovieSearch} from '../lib/catalog-search';
 import type {Release} from '../lib/store';
 import {encodeSpecs} from '../lib/movie-details';
 import Link from 'next/link';
@@ -123,11 +123,12 @@ export default function Home({initialReleases=[],initialFilters={}}:{initialRele
   const collections=availableCollections(entries);
   const years=[...new Set(cards.map(movie=>movie.year).filter((year):year is number=>year!==null))].sort((a,b)=>b-a);
   const matchesRelease=(r:Movie)=>(sourceFilter==='All sources'||classifySource(r.filename||'')===sourceFilter)&&(!codecFilter||r.codec.includes(codecFilter))&&(filter==='All releases'||r.category===filter)&&(quality==='All resolutions'||r.resolution===quality);
+  const searchScore=createMovieSearch(entries,query);
   const movies=cards.flatMap(movie=>{
-    const releases=movie.releases||[movie],matching=[...releases].sort(newestFirst).filter(r=>matchesRelease(r)&&releaseSearchScore({...r,details:movie.details,title:movie.title},query)>0);
+    const releases=movie.releases||[movie],matching=[...releases].sort(newestFirst).filter(r=>matchesRelease(r)&&searchScore({...r,details:movie.details,title:movie.title})>0);
     if(!matching.length||(genre!=='All genres'&&!movieGenres(movie).some(value=>value.toLowerCase()===genre.toLowerCase()))||(collectionFilter!=='All collections'&&movieCollection(movie)?.slug!==collectionFilter)||(onlySaved&&!saved.includes(movie.id)&&!releases.some(r=>saved.includes(r.id)))||(year!=='All years'&&String(movie.year)!==year))return [];
     return [{...matching[0],id:movie.id,title:movie.title,poster:movie.poster,details:movie.details,releases,matchingReleases:matching,releaseCount:releases.length,...groupDates(matching)}];
-  }).sort((a,b)=>sort==='Title A–Z'?a.title.localeCompare(b.title):sort==='Release year'?(b.year||0)-(a.year||0):query.trim()?Math.max(...(b.releases||[b]).filter(matchesRelease).map(r=>releaseSearchScore({...r,details:b.details,title:b.title},query)))-Math.max(...(a.releases||[a]).filter(matchesRelease).map(r=>releaseSearchScore({...r,details:a.details,title:a.title},query))):newestFirst(a,b));
+  }).sort((a,b)=>sort==='Title A–Z'?a.title.localeCompare(b.title):sort==='Release year'?(b.year||0)-(a.year||0):query.trim()?Math.max(...(b.releases||[b]).filter(matchesRelease).map(r=>searchScore({...r,details:b.details,title:b.title})))-Math.max(...(a.releases||[a]).filter(matchesRelease).map(r=>searchScore({...r,details:a.details,title:a.title}))):newestFirst(a,b));
   const pagingKey=JSON.stringify([query,genre,collectionFilter,sourceFilter,filter,quality,codecFilter,year,sort,onlySaved,pageSize]);
   const pageData=paginate(movies,paging.key===pagingKey?paging.page:1,pageSize);
   useEffect(()=>setPaging({key:pagingKey,page:1}),[pagingKey]);
@@ -154,7 +155,7 @@ export default function Home({initialReleases=[],initialFilters={}}:{initialRele
     <div className="archive-app" id="top">
       <header className="archive-header">
         <a className="archive-brand" href="/" aria-label="VITOENCODES home"><span className="archive-mark">V<span>.</span></span><span>VITO<b>ENCODES</b><small>THE INDEPENDENT ARCHIVE</small></span></a>
-        <label className="archive-search"><Search size={19}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Title, year, quality, genre or encoder" maxLength={200} aria-label="Search movies"/>{query?<button onClick={()=>setQuery('')} aria-label="Clear search"><X size={16}/></button>:<kbd>CTRL K</kbd>}</label>
+        <label className="archive-search"><Search size={19}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Movie title or series" maxLength={200} aria-label="Search movies"/>{query?<button onClick={()=>setQuery('')} aria-label="Clear search"><X size={16}/></button>:<kbd>CTRL K</kbd>}</label>
         <Link className="archive-saved" href="/saved"><Bookmark size={17}/><span>Saved</span><b>{saved.length}</b></Link>
         {isOwner&&<a className="archive-owner" href="/admin?view=catalog"><Settings2 size={16}/> Studio</a>}
       </header>
