@@ -75,6 +75,7 @@ try{
  if(db){
   try{
    // Only records with this run's random marker can be removed.
+   await db.prepare('DELETE FROM audit_events WHERE before_state LIKE ? OR after_state LIKE ?').run('%'+marker+'%','%'+marker+'%');
    await db.prepare('DELETE FROM releases WHERE filename=?').run(marker+'.2026.1080p.mkv');
    await db.prepare('DELETE FROM support_issues WHERE subject=?').run(marker);
    await db.prepare('DELETE FROM movie_metadata_cache WHERE cache_key=?').run(marker);

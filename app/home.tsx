@@ -1,4 +1,5 @@
 'use client';
+import {recordEvent} from '../lib/client-analytics';
 import ResilientImage from './components/resilient-image';
 import ActiveFilters,{type ActiveFilter} from './components/active-filters';
 import SiteFooter from './components/site-footer';
@@ -130,6 +131,7 @@ export default function Home({initialReleases=[],initialFilters={}}:{initialRele
   const formats=['All releases','IMAX','Open Matte','35mm',...[...new Set(entries.map(row=>row.category))].filter(value=>value&&!['IMAX','Open Matte','35mm','Other'].includes(value))];
   const years=[...new Set(cards.map(movie=>movie.year).filter((year):year is number=>year!==null))].sort((a,b)=>b-a);
   const matchesRelease=(r:Movie)=>(sourceFilter==='All sources'||classifySource(r.filename||'')===sourceFilter)&&(!codecFilter||r.codec.includes(codecFilter))&&(filter==='All releases'||r.category===filter)&&(quality==='All resolutions'||r.resolution===quality);
+  useEffect(()=>{if(query.trim().length<2)return;const timer=setTimeout(()=>recordEvent({kind:'search',query:query.trim()}),1200);return()=>clearTimeout(timer);},[query]);
   const searchScore=createMovieSearch(entries,query);
   const movies=cards.flatMap(movie=>{
     const releases=movie.releases||[movie],matching=[...releases].sort(newestFirst).filter(r=>matchesRelease(r)&&searchScore({...r,details:movie.details,title:movie.title})>0);

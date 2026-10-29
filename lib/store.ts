@@ -4,17 +4,20 @@ import {detectEncoder,type Encoder} from './encoder.ts';
 import {classifySource,type EncodeSource} from './encode-source.ts';
 import type {MovieDetails} from './movie-details';
 import {database} from './database.ts';
+import {snapshots,recordHistory} from './history.ts';
 import {groupMovieReleases,type LibraryMovie} from './library.ts';
 import {validateReleasePresentation,ReleaseSettingsError,type ReleasePresentation} from './release-settings.ts';
 export {database} from './database.ts';
 export type Release={id:string;filename:string;title:string;year:number|null;category:string;resolution:string;size:string;status:string;links:{label:string;url:string}[];poster?:string;metadata_source?:string;size_bytes?:number|null;created_at?:string;updated_at?:string|null;source?:EncodeSource;encoder?:Encoder;details?:MovieDetails};
 const releaseColumns='id,filename,title,year,category,resolution,size,status,links,poster,metadata_source,size_bytes,created_at,updated_at,details';
 
-export async function listReleases(publishedOnly=false):Promise<Release[]>{
+export async function listReleases(publishedOnly=false,lightweight=false):Promise<Release[]>{
  const db=await database();
  try{
   const order=db.postgres?'created_at DESC, sort_order DESC':'julianday(created_at) DESC, rowid DESC';
-  const rows=await db.prepare(`SELECT ${releaseColumns} FROM releases ${publishedOnly?"WHERE status='published'":''} ORDER BY ${order}`).all() as unknown as (Omit<Release,'links'|'details'>&{links:string;details:string})[];
+  const lightKeys=['genres','genresEdited','officialTitle','tmdbId','collection','primaryReleaseId'];
+  const columns=lightweight?releaseColumns.replace('details',(db.postgres?"jsonb_strip_nulls(jsonb_build_object("+lightKeys.map(key=>"'"+key+"',details::jsonb->'"+key+"'").join(',')+"))::text":"json_object("+lightKeys.map(key=>"'"+key+"',json_extract(details,'$."+key+"')").join(',')+")")+' AS details'):releaseColumns;
+  const rows=await db.prepare(`SELECT ${columns} FROM releases ${publishedOnly?"WHERE status='published'":''} ORDER BY ${order}`).all() as unknown as (Omit<Release,'links'|'details'>&{links:string;details:string})[];
   return rows.map(r=>({...r,source:classifySource(r.filename),encoder:detectEncoder(r.filename),links:JSON.parse(r.links),details:JSON.parse(r.details||'{}')}));
  }finally{await db.close();}
 }
@@ -40,6 +43,8 @@ export async function updateRelease(id:string,title:string,links:Release['links'
     if(!selected||selected.status==='draft'&&!(selected.id===id&&status==='published')&&!alreadySelected)throw new ReleaseSettingsError('Choose a published main release from this movie.');
    }
   }
+  const affected=settingsInput&&(settingsInput.primaryReleaseId!==undefined||details?.genres!==undefined)?peers.map(row=>row.id):[id];
+  const before=await snapshots(db,affected);
   const settings=await readHubDriveSettings(db);
   links=links.map(link=>({...link,url:normalizeHubDriveLink(link.url,settings)}));
   links=links.filter((link,index)=>links.findIndex(other=>other.url===link.url)===index);
@@ -56,6 +61,7 @@ export async function updateRelease(id:string,title:string,links:Release['links'
     for(const peer of peers)await update.run(JSON.stringify(patch),peer.id);
    }
   }
+  await recordHistory(db,'Edit release',before,affected);
   await db.exec('COMMIT');
   return result.changes>0;
  }catch(error){if(db.isTransaction)await db.exec('ROLLBACK');throw error;}
@@ -71,11 +77,13 @@ export async function saveImportedMovieDetails(id:string,details:MovieDetails){
  const db=await database();
  try{
   await db.exec('BEGIN IMMEDIATE');
-  const row=await db.prepare('SELECT details FROM releases WHERE id=?').get(id);
+  const before=await snapshots(db,[id]);
+  const row=before[0];
   const saved:MovieDetails=row?JSON.parse(String(row.details)):{};
   details={...details,primaryReleaseId:undefined,...(saved.primaryReleaseId?{primaryReleaseId:saved.primaryReleaseId}:{}),...(saved.genresEdited?{genres:saved.genres||'',genresEdited:true}:{})};
   const poster=details.poster&&(/^https:\/\/image\.tmdb\.org\/t\/p\//.test(details.poster)||(/^\/posters\/[a-zA-Z0-9_./-]+\.(?:jpg|png|webp)$/.test(details.poster)&&!details.poster.includes('..')))?details.poster:null;
   const updated=(await db.prepare('UPDATE releases SET details=?,poster=COALESCE(?,poster),metadata_source=CASE WHEN CAST(? AS TEXT) IS NOT NULL THEN ? ELSE metadata_source END WHERE id=?').run(JSON.stringify(details),poster,poster,details.tmdbId?'https://www.themoviedb.org/movie/'+details.tmdbId:'Linkify Media',id)).changes>0;
+  await recordHistory(db,'Refresh movie metadata',before,[id]);
   await db.exec('COMMIT');return updated;
  }catch(error){if(db.isTransaction)await db.exec('ROLLBACK');throw error;}finally{await db.close();}
 }

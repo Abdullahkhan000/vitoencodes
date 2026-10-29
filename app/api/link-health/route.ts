@@ -1,0 +1,2 @@
+import {publicLinkHealth} from '../../../lib/link-health';
+export async function GET(request:Request){const id=new URL(request.url).searchParams.get('release');if(!id||id.length>500)return Response.json({checks:[]});try{return Response.json({checks:await publicLinkHealth(id)},{headers:{'Cache-Control':'public, max-age=30, s-maxage=60'}});}catch{return Response.json({checks:[]},{headers:{'Cache-Control':'no-store'}});}}

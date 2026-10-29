@@ -1,3 +1,5 @@
+import type {Metadata} from 'next';
+import {siteUrl} from '../../../lib/site-url';
 import {newestFirst} from '../../../lib/release-dates';
 ﻿import {notFound,redirect} from 'next/navigation';
 import {catalog} from '../../../lib/catalog';
@@ -22,3 +24,5 @@ export default async function Movie({params,searchParams}:{params:Promise<{id:st
  const collectionItems=group?collectionMovies(group.movie,published).map(card):[];
  return <MovieDetail movie={release} versions={alternatives} related={related} collection={collection} collectionItems={collectionItems} preview={!group}/>;
 }
+
+export async function generateMetadata({params}:{params:Promise<{id:string}>}):Promise<Metadata>{const {id}=await params;const rows=await listReleases(true),group=groupMovieReleases(rows).find(group=>movieRouteId(group.movie)===id||group.releases.some(row=>row.id===id));if(!group)return {title:'Movie not found | VITOENCODES',robots:{index:false,follow:false}};const row=group.movie,title=movieTitle(row)+(row.year?' ('+row.year+')':'')+' | VITOENCODES',description=(row.details?.synopsis||'Compare '+group.releases.length+' available encodes, formats and download mirrors.').slice(0,180),url=siteUrl()+'/movies/'+encodeURIComponent(movieRouteId(row)),image=poster(row.poster||'',row.id);return {title,description,alternates:{canonical:url},openGraph:{title,description,url,type:'video.movie',...(image?{images:[image]}:{})},twitter:{card:'summary_large_image',title,description,...(image?{images:[image]}:{})}};}

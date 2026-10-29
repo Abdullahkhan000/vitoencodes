@@ -1,3 +1,4 @@
+import {revalidateTag} from 'next/cache';
 ﻿import {mkdir,writeFile,readFile,rename} from 'node:fs/promises';
 import path from 'node:path';
 import {authorized,denied} from '../../../../lib/auth';
@@ -11,8 +12,8 @@ const verifiedPosters:Record<string,string>={
  'quantum-of-solace':'e3DXXLJHGqMx9yYpXsql1XNljmM.jpg',
 };
 function imageExtension(bytes:Buffer){if(bytes[0]===0xff&&bytes[1]===0xd8)return '.jpg';if(bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])))return '.png';if(bytes.toString('ascii',0,4)==='RIFF'&&bytes.toString('ascii',8,12)==='WEBP')return '.webp';throw new Error('Unsupported poster image format');}
-export async function POST(request:Request){
- if(!authorized(request))return denied();
+async function handlePOST(request:Request){
+ if(!(await authorized(request)))return denied();
  const rows=(await listReleases());const backup=process.env.DATA_DIRECTORY||path.join(process.cwd(),'data');await mkdir(backup,{recursive:true});await writeFile(path.join(backup,'before-artwork-'+Date.now()+'.json'),JSON.stringify(rows,null,2));
  const matches=new Map<string,NonNullable<ReturnType<typeof identifyFilm>>>();for(const row of rows){const match=identifyFilm(row.filename,row.year);if(match)matches.set(match.key,match);}
  const results:{key:string;poster:string;source:string;error?:string}[]=[];
@@ -43,3 +44,5 @@ export async function POST(request:Request){
  }
  return Response.json({matchedReleases:rows.filter(r=>identifyFilm(r.filename,r.year)).length,uniqueFilms:matches.size,results},{headers:{'Cache-Control':'no-store'}});
 }
+
+export async function POST(request:Request){const response=await handlePOST(request);if(response.ok)revalidateTag('public-catalog',{expire:0});return response;}

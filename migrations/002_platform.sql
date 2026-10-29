@@ -1,0 +1,10 @@
+CREATE TABLE IF NOT EXISTS rate_limits(bucket TEXT PRIMARY KEY,hits INTEGER NOT NULL,reset_at BIGINT NOT NULL);
+CREATE INDEX IF NOT EXISTS rate_limits_expiry ON rate_limits(reset_at);
+CREATE TABLE IF NOT EXISTS audit_events(id TEXT PRIMARY KEY,action TEXT NOT NULL,before_state TEXT NOT NULL,after_state TEXT NOT NULL,created_at TEXT NOT NULL,restored_at TEXT,context TEXT NOT NULL DEFAULT '{}');
+CREATE INDEX IF NOT EXISTS audit_events_recent ON audit_events(created_at);
+CREATE TABLE IF NOT EXISTS admin_security(id TEXT PRIMARY KEY,enabled INTEGER NOT NULL DEFAULT 0,signing_secret TEXT NOT NULL,encrypted_secret TEXT,pending_secret TEXT,pending_until BIGINT,last_counter BIGINT NOT NULL DEFAULT -1,version INTEGER NOT NULL DEFAULT 0,recovery_hashes TEXT NOT NULL DEFAULT '[]');
+CREATE TABLE IF NOT EXISTS link_health(release_id TEXT NOT NULL,url_hash TEXT NOT NULL,url TEXT NOT NULL,state TEXT NOT NULL,http_status INTEGER,checked_at TEXT NOT NULL,note TEXT NOT NULL,PRIMARY KEY(release_id,url_hash));
+CREATE INDEX IF NOT EXISTS link_health_recent ON link_health(checked_at);
+CREATE TABLE IF NOT EXISTS analytics_daily(day TEXT NOT NULL,kind TEXT NOT NULL,subject TEXT NOT NULL,total INTEGER NOT NULL DEFAULT 1,PRIMARY KEY(day,kind,subject));
+CREATE TABLE IF NOT EXISTS app_errors(id TEXT PRIMARY KEY,kind TEXT NOT NULL,path TEXT NOT NULL,message TEXT NOT NULL,first_seen TEXT NOT NULL,last_seen TEXT NOT NULL,total INTEGER NOT NULL DEFAULT 1,resolved_at TEXT);
+CREATE TABLE IF NOT EXISTS catalog_backups(id TEXT PRIMARY KEY,created_at TEXT NOT NULL,release_count INTEGER NOT NULL,payload TEXT NOT NULL);

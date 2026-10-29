@@ -1,3 +1,4 @@
+import {snapshots,recordHistory} from './history.ts';
 ﻿import {database} from './store.ts';
 export async function changeVisibility(ids:string[],status:'draft'|'published') {
  if(!Array.isArray(ids)||!ids.length||ids.length>500||ids.some(id=>typeof id!=='string'||!id))throw new Error('Select between 1 and 500 releases.');
@@ -5,6 +6,7 @@ export async function changeVisibility(ids:string[],status:'draft'|'published') 
  const unique=[...new Set(ids)],db=(await database());
  try {
   (await db.exec('BEGIN IMMEDIATE'));
+  const before=await snapshots(db,unique);
   const read=db.prepare('SELECT title,links FROM releases WHERE id=?');
   for(const id of unique){
    const row=(await read.get(id)) as {title:string;links:string}|undefined;
@@ -16,6 +18,7 @@ export async function changeVisibility(ids:string[],status:'draft'|'published') 
   }
   const update=db.prepare('UPDATE releases SET status=? WHERE id=?');
   for(const id of unique)(await update.run(status,id));
+  await recordHistory(db,status==='published'?'Publish releases':'Unpublish releases',before,unique);
   (await db.exec('COMMIT'));return unique.length;
  }catch(error){if(db.isTransaction)(await db.exec('ROLLBACK'));throw error;}finally{(await db.close());}
 }
