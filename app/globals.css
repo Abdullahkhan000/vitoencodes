@@ -119,3 +119,6 @@ input::placeholder,textarea::placeholder{color:#aaa;opacity:1}
 .archive-all-collections:hover{color:#fff}
 .archive-collection-note{font-size:14px;line-height:1.8;color:#aaa}
 @media(max-width:700px){.archive-card-compact .archive-card-copy{padding-top:11px;gap:7px}.archive-card-compact .archive-card-copy h3{font-size:16px}.archive-card-facts,.archive-card-summary{font-size:12px}.archive-card-state{top:8px;left:8px;font-size:11px}.archive-list .archive-card-compact .archive-card-copy{gap:7px}}
+.archive-search .archive-search-shortcut{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;min-height:36px;padding:3px;border-radius:5px}
+.archive-search .archive-search-shortcut:hover kbd{color:#fff;border-color:#999}
+.archive-search .archive-search-shortcut:focus-visible{outline:2px solid #eee;outline-offset:2px}

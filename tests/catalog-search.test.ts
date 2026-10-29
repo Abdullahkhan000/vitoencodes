@@ -91,3 +91,10 @@ test('public title search trusts the verified title over an outdated imported fi
  const rows=[{title:'Iron Man',details:{officialTitle:'Iron Man',collection:{id:1,name:'Iron Man Collection'}}},{title:'Iron Man',details:{officialTitle:'A Different Movie',collection:{id:99,name:'Other Collection'}}}];
  const score=createMovieSearch(rows,'iron man');assert.ok(score(rows[0])>0);assert.equal(score(rows[1]),0);
 });
+
+test('John Wick series search works when only the numbered chapters are available',()=>{
+ const collection={id:404609,name:'John Wick Collection'};
+ const rows=[{title:'John Wick: Chapter 2',details:{collection}},{title:'John Wick: Chapter 3 - Parabellum',details:{collection}},{title:'John Wick: Chapter 4',details:{collection}},{title:'John Carter'},{title:'John Wick: An Unrelated Story',details:{collection:{id:99,name:'Unrelated Collection'}}}];
+ const score=createMovieSearch(rows,'john wick');
+ assert.deepEqual(rows.filter(row=>score(row)>0).map(row=>row.title),rows.slice(0,3).map(row=>row.title));
+});

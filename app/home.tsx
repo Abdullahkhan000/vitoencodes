@@ -70,6 +70,10 @@ export default function Home({initialReleases=[],initialFilters={}}:{initialRele
   const searchRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
+  function openSearch(){
+    setSearchOpen(true);
+    window.requestAnimationFrame(()=>{searchRef.current?.focus();searchRef.current?.select();});
+  }
 
 
   useEffect(() => {
@@ -89,14 +93,17 @@ export default function Home({initialReleases=[],initialFilters={}}:{initialRele
   useEffect(()=>{let active=true;const refresh=()=>{if(document.hidden)return;fetch('/api/catalog',{cache:'no-store'}).then(r=>r.ok?r.json():Promise.reject()).then(data=>{if(active&&Array.isArray(data.releases))setEntries(data.releases.map(publicMovie));}).catch(()=>{});};window.addEventListener('focus',refresh);const interval=window.setInterval(refresh,60000);return()=>{active=false;window.removeEventListener('focus',refresh);window.clearInterval(interval);};},[]);
 
   useEffect(() => {
-    const openSearch=()=>setSearchOpen(true);window.addEventListener('vito:open-search',openSearch);
+    const showSearch=()=>openSearch();window.addEventListener('vito:open-search',showSearch);
     function keyboard(event: KeyboardEvent) {
       if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'a') { event.preventDefault(); window.location.assign('/admin/login'); return; }
-      if ((event.metaKey || event.ctrlKey) && event.key === 'k') { event.preventDefault(); setSearchOpen(open => !open); }
+      if (!event.isComposing&&!event.altKey&&(event.metaKey||event.ctrlKey)&&(event.code==='KeyK'||event.key.toLowerCase()==='k')) {
+        event.preventDefault();
+        if(!event.repeat)openSearch();
+      }
       if (event.key === 'Escape') { setSelected(null); setSearchOpen(false); }
     }
-    window.addEventListener('keydown', keyboard);
-    return () => {window.removeEventListener('keydown', keyboard);window.removeEventListener('vito:open-search',openSearch);};
+    window.addEventListener('keydown', keyboard, true);
+    return () => {window.removeEventListener('keydown', keyboard, true);window.removeEventListener('vito:open-search',showSearch);};
   }, []);
 
   useEffect(() => {
@@ -155,7 +162,7 @@ export default function Home({initialReleases=[],initialFilters={}}:{initialRele
     <div className="archive-app" id="top">
       <header className="archive-header">
         <a className="archive-brand" href="/" aria-label="VITOENCODES home"><span className="archive-mark">V<span>.</span></span><span>VITO<b>ENCODES</b><small>THE INDEPENDENT ARCHIVE</small></span></a>
-        <label className="archive-search"><Search size={19}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Movie title or series" maxLength={200} aria-label="Search movies"/>{query?<button onClick={()=>setQuery('')} aria-label="Clear search"><X size={16}/></button>:<kbd>CTRL K</kbd>}</label>
+        <label className="archive-search"><Search size={19}/><input value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={event=>{if(event.key==='Enter'){event.preventDefault();openSearch();}}} placeholder="Movie title or series" maxLength={200} aria-label="Search movies"/>{query&&<button type="button" onClick={()=>setQuery('')} aria-label="Clear search"><X size={16}/></button>}<button type="button" className="archive-search-shortcut" aria-label="Open search" aria-haspopup="dialog" aria-keyshortcuts="Control+k Meta+k" onClick={event=>{event.preventDefault();openSearch();}}><kbd>CTRL K</kbd></button></label>
         <Link className="archive-saved" href="/saved"><Bookmark size={17}/><span>Saved</span><b>{saved.length}</b></Link>
         {isOwner&&<a className="archive-owner" href="/admin?view=catalog"><Settings2 size={16}/> Studio</a>}
       </header>
