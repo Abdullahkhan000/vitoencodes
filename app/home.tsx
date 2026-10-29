@@ -3,8 +3,7 @@ import ResilientImage from './components/resilient-image';
 import ActiveFilters,{type ActiveFilter} from './components/active-filters';
 import SiteFooter from './components/site-footer';
 
-import ReleaseDates from './components/release-dates';
-import {newestFirst,groupDates} from '../lib/release-dates';
+import {newestFirst,groupDates,timestamp} from '../lib/release-dates';
 import Pagination from './components/pagination';
 import {paginate,releaseSearchScore} from '../lib/catalog-search';
 import type {Release} from '../lib/store';
@@ -15,19 +14,37 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowDown, ArrowUpRight, Search, X, Film, Grid2X2, List, Command, Layers3, Bookmark, Download, Settings2 } from 'lucide-react';
 import {availableCollections,movieGenres,movieCollection,groupMovieReleases,movieRouteId,movieTitle} from '../lib/library';
 import type {MovieDetails} from '../lib/movie-details';
-import { detectEncoder } from '../lib/encoder';
 import { classifySource, encodeSources } from '../lib/encode-source';
 import { catalog } from '../lib/catalog';
 
-type Movie = Omit<typeof catalog[number],'year'> & {year:number|null} & { links?: { label: string; url: string }[]; live?: boolean; filename?: string;status?:string;details?:MovieDetails;releases?:Movie[];releaseCount?:number;created_at?:string;updated_at?:string|null };
+type Movie = Omit<typeof catalog[number],'year'> & {year:number|null} & { links?: { label: string; url: string }[]; live?: boolean; filename?: string;status?:string;details?:MovieDetails;releases?:Movie[];releaseCount?:number;created_at?:string;updated_at?:string|null;size_bytes?:number|null;matchingReleases?:Movie[] };
 const image = (movie: Movie) => movie.poster ? ((movie.poster.startsWith('/') || movie.poster.startsWith('https://')) ? movie.poster : posterIds.has(movie.id) ? '/posters/' + movie.id + '.jpg' : 'https://image.tmdb.org/t/p/w780/' + movie.poster) : '';
 const formats = ['All releases', 'IMAX', 'Open Matte', '35mm'];
 
 const posterIds = new Set(catalog.map(m => m.id));
 
 const publicMovie=(r:Release):Movie=>{const specs=encodeSpecs(r.filename);return {...r,codec:specs.codec+(specs.bitDepth!=='Not specified'?' · '+specs.bitDepth:''),poster:r.poster||'',live:true};};
+function compactSize(releases:Movie[]){
+  const bytes=(release:Movie)=>{
+    if(release.size_bytes&&release.size_bytes>0)return release.size_bytes;
+    const match=release.size.match(/^(\d+(?:\.\d+)?)\s*(KiB|MiB|GiB|TiB|KB|MB|GB|TB|B)$/i);
+    if(!match)return Infinity;
+    const units:Record<string,number>={b:1,kb:1e3,mb:1e6,gb:1e9,tb:1e12,kib:1024,mib:1024**2,gib:1024**3,tib:1024**4};
+    return Number(match[1])*units[match[2].toLowerCase()];
+  };
+  const smallest=[...releases].sort((a,b)=>bytes(a)-bytes(b))[0];
+  return smallest&&Number.isFinite(bytes(smallest))?(releases.length>1?'From ':'')+smallest.size:'Size unavailable';
+}
+function freshness(movie:Movie,now:number){
+  if(!now)return null;
+  const added=timestamp(movie.created_at)?.getTime()||0,updated=timestamp(movie.updated_at)?.getTime()||0;
+  const recent=(date:number)=>date>0&&now>=date&&now-date<7*24*60*60*1000;
+  return recent(added)?'New':updated>added&&recent(updated)?'Updated':null;
+}
 export default function Home({initialReleases=[],initialFilters={}}:{initialReleases?:Release[];initialFilters?:{query?:string;genre?:string;collection?:string;source?:string;saved?:boolean;search?:boolean}}) {
   const router = useRouter();
+  const [now,setNow]=useState(0);
+  useEffect(()=>setNow(Date.now()),[]);
   const [entries, setEntries] = useState<Movie[]>(initialReleases.length?initialReleases.map(publicMovie):catalog);
   const [isOwner, setIsOwner] = useState(false);
   useEffect(() => { let active = true; const check = () => { fetch('/api/admin/session', {cache:'no-store'}).then(r => r.ok ? r.json() : Promise.reject()).then(data => {if(active)setIsOwner(data.authenticated === true);}).catch(() => {if(active)setIsOwner(false);}); }; check(); window.addEventListener('focus',check); return () => {active=false;window.removeEventListener('focus',check);}; }, []);
@@ -109,7 +126,7 @@ export default function Home({initialReleases=[],initialFilters={}}:{initialRele
   const movies=cards.flatMap(movie=>{
     const releases=movie.releases||[movie],matching=[...releases].sort(newestFirst).filter(r=>matchesRelease(r)&&releaseSearchScore({...r,details:movie.details,title:movie.title},query)>0);
     if(!matching.length||(genre!=='All genres'&&!movieGenres(movie).some(value=>value.toLowerCase()===genre.toLowerCase()))||(collectionFilter!=='All collections'&&movieCollection(movie)?.slug!==collectionFilter)||(onlySaved&&!saved.includes(movie.id)&&!releases.some(r=>saved.includes(r.id)))||(year!=='All years'&&String(movie.year)!==year))return [];
-    return [{...matching[0],id:movie.id,title:movie.title,poster:movie.poster,details:movie.details,releases,releaseCount:releases.length,...groupDates(matching)}];
+    return [{...matching[0],id:movie.id,title:movie.title,poster:movie.poster,details:movie.details,releases,matchingReleases:matching,releaseCount:releases.length,...groupDates(matching)}];
   }).sort((a,b)=>sort==='Title A–Z'?a.title.localeCompare(b.title):sort==='Release year'?(b.year||0)-(a.year||0):query.trim()?Math.max(...(b.releases||[b]).filter(matchesRelease).map(r=>releaseSearchScore({...r,details:b.details,title:b.title},query)))-Math.max(...(a.releases||[a]).filter(matchesRelease).map(r=>releaseSearchScore({...r,details:a.details,title:a.title},query))):newestFirst(a,b));
   const pagingKey=JSON.stringify([query,genre,collectionFilter,sourceFilter,filter,quality,codecFilter,year,sort,onlySaved,pageSize]);
   const pageData=paginate(movies,paging.key===pagingKey?paging.page:1,pageSize);
@@ -162,11 +179,38 @@ export default function Home({initialReleases=[],initialFilters={}}:{initialRele
               <div className="archive-source-tabs" aria-label="Browse encode sources">{['All sources',...encodeSources].map(source=><button key={source} className={sourceFilter===source?'active':''} aria-pressed={sourceFilter===source} onClick={()=>browseSource(source)}>{source}<span>{source==='All sources'?cards.length:entries.filter(movie=>classifySource(movie.filename||'')===source).length}</span></button>)}</div><div className="archive-tabs">{formats.map(format=><button key={format} className={filter===format?'active':''} onClick={()=>browse(format)}>{format}</button>)}</div>
               <div className="archive-filters"><label><span>GENRE</span><select value={genre} onChange={e=>setGenre(e.target.value)} aria-label="Genre"><option>All genres</option>{genres.map(value=><option key={value}>{value}</option>)}{genre!=='All genres'&&!genres.includes(genre)&&<option>{genre}</option>}</select></label><label><span>QUALITY</span><select value={quality} onChange={e=>setQuality(e.target.value)} aria-label="Resolution"><option>All resolutions</option>{['2160p','1440p','1080p','720p'].map(value=><option key={value}>{value}</option>)}</select></label><label><span>CODEC</span><select value={codecFilter} onChange={e=>setCodecFilter(e.target.value)} aria-label="Codec"><option value="">All codecs</option><option>HEVC</option><option>AV1</option><option>H.264</option></select></label><label><span>YEAR</span><select value={year} onChange={e=>setYear(e.target.value)} aria-label="Release year"><option>All years</option>{years.map(value=><option key={value}>{value}</option>)}</select></label><button onClick={reset} title="Reset all filters"><X size={14}/> Reset</button></div>
               <ActiveFilters filters={activeFilters} clear={()=>{reset();setSort('Latest added');}}/><div className="archive-results" role="status" aria-live="polite"><span>{movies.length} {movies.length===1?'movie':'movies'}{query?' matching “'+query+'”':''}</span><select value={sort} onChange={e=>setSort(e.target.value)} aria-label="Sort releases"><option>Latest added</option><option>Title A–Z</option><option>Release year</option></select></div>
-              <div className={'archive-grid '+(view==='list'?'archive-list':'')}>{pageData.items.map(movie=><article className="archive-card" key={movie.id}><div className="archive-card-art"><Link className="archive-card-open" href={'/movies/'+encodeURIComponent(movie.id)} aria-label={'View '+movie.title}><ResilientImage src={image(movie)} alt={movie.title+' poster'} loading="lazy"/><span className="archive-card-quality">{movie.resolution}</span><span className="archive-card-overlay"><Download size={24}/> View encode</span></Link><button className={'archive-bookmark '+(saved.includes(movie.id)?'active':'')} onClick={()=>toggleSaved(movie.id)} aria-label={(saved.includes(movie.id)?'Unsave ':'Save ')+movie.title} aria-pressed={saved.includes(movie.id)}><Bookmark size={16} fill={saved.includes(movie.id)?'currentColor':'none'}/></button></div><Link className="archive-card-copy" href={'/movies/'+encodeURIComponent(movie.id)}><span className="archive-card-format">{classifySource(movie.filename||'')!=='Unknown'&&<b className="archive-source-badge">{classifySource(movie.filename||'')}</b>}{movie.category} <span> / {movie.year}</span></span><h3>{movie.title}</h3><span className="archive-card-version-count">{movie.releaseCount&&movie.releaseCount>1?movie.releaseCount+' releases to compare':'1 release'}</span>{movie.details?.genres&&<span className="archive-card-genres">{movie.details.genres}</span>}<span className="archive-card-encoder">{movie.filename?detectEncoder(movie.filename):'VITOENCODES'}</span><div className="archive-card-meta"><span>{movie.codec.replace('Â·','·')}</span><strong>{movie.size}</strong></div><ReleaseDates created_at={movie.created_at} updated_at={movie.updated_at}/></Link></article>)}</div>
+              <div className={'archive-grid '+(view==='list'?'archive-list':'')}>{pageData.items.map(movie=>{
+                const options=movie.matchingReleases||movie.releases||[movie],badge=freshness(movie,now);
+                return <article className="archive-card archive-card-compact" key={movie.id}>
+                  <div className="archive-card-art">
+                    <Link className="archive-card-open" href={'/movies/'+encodeURIComponent(movie.id)} aria-label={'View '+movie.title}>
+                      <ResilientImage src={image(movie)} alt={movie.title+' poster'} loading="lazy"/>
+                      {badge&&<span className="archive-card-state">{badge}</span>}
+                      <span className="archive-card-overlay"><ArrowUpRight size={24}/> View {options.length>1?'encodes':'encode'}</span>
+                    </Link>
+                    <button className={'archive-bookmark '+(saved.includes(movie.id)?'active':'')} onClick={()=>toggleSaved(movie.id)} aria-label={(saved.includes(movie.id)?'Unsave ':'Save ')+movie.title} aria-pressed={saved.includes(movie.id)}><Bookmark size={16} fill={saved.includes(movie.id)?'currentColor':'none'}/></button>
+                  </div>
+                  <Link className="archive-card-copy" href={'/movies/'+encodeURIComponent(movie.id)}>
+                    <h3>{movie.title}</h3>
+                    <div className="archive-card-facts">
+                      {movie.year&&<span>{movie.year}</span>}
+                      {movie.resolution!=='Unknown'&&<span>{movie.resolution}</span>}
+                      {['IMAX','Open Matte','35mm'].includes(movie.category)&&<span>{movie.category}</span>}
+                    </div>
+                    <div className="archive-card-summary"><span>{compactSize(options)}</span><span>{options.length} {options.length===1?'encode':'encodes'}</span></div>
+                  </Link>
+                </article>;
+              })}</div>
               {!movies.length&&<div className="archive-empty"><Search size={30}/><h3>{onlySaved?'Your saved shelf is empty.':'No matching releases.'}</h3><p>{onlySaved?'Bookmark any encode to keep it here.':'Try another title or clear your filters.'}</p><button onClick={reset}>Browse all encodes <ArrowUpRight size={15}/></button></div>}
               <Pagination {...pageData} pageSize={pageSize} onPage={changePage} onSize={setPageSize} label="movies"/>
             </section>
-            <aside className="archive-recent"><div className="archive-recent-heading"><span className="archive-label">ON THE SHELF</span><h2>Recently added <ArrowDown size={15}/></h2></div>{cards.slice(0,5).map((movie,index)=><button className="archive-recent-item" key={movie.id} onClick={()=>openMovie(movie)}><span className="archive-recent-number">{String(index+1).padStart(2,'0')}</span>{image(movie)?<ResilientImage src={image(movie)} alt="" loading="lazy"/>:<span className="archive-recent-placeholder"><Film size={18}/></span>}<div><strong>{movie.title}</strong><span>{movie.year} · {movie.resolution}</span><small>{movie.category} <b>{movie.size}</b></small></div></button>)}<div className="archive-year-browse"><span className="archive-label">BROWSE BY RELEASE YEAR</span><div>{years.slice(0,8).map(value=><button key={value} className={year===String(value)?'active':''} onClick={()=>{setYear(year===String(value)?'All years':String(value));document.getElementById('collection')?.scrollIntoView({behavior:'smooth'});}}>{value}<ArrowUpRight size={12}/></button>)}</div></div><div className="archive-editorial"><Film size={26}/><h3>More than<br/>a file name.</h3><p>IMAX, Open Matte, 35mm. Find the frame you’re looking for.</p><span>THE VITOENCODES STANDARD</span></div></aside>
+            <aside className="archive-recent"><div className="archive-recent-heading"><span className="archive-label">FOLLOW THE STORY</span><h2>Movie collections <Layers3 size={16}/></h2></div>
+              {collections.length?collections.slice(0,5).map(collection=><Link className="archive-recent-item archive-collection-item" href={'/collections/'+collection.slug} key={collection.slug}>
+                {collection.poster?<ResilientImage src={collection.poster} alt="" loading="lazy"/>:<span className="archive-recent-placeholder"><Layers3 size={18}/></span>}
+                <div><strong>{collection.name.replace(/ Collection$/,'')}</strong><span>{collection.count} {collection.count===1?'movie':'movies'}</span></div><ArrowUpRight size={15}/>
+              </Link>):<p className="archive-collection-note">Collections appear as matching movies are published.</p>}
+              <Link className="archive-all-collections" href="/collections">Explore collections <ArrowUpRight size={15}/></Link>
+              <div className="archive-year-browse"><span className="archive-label">BROWSE BY RELEASE YEAR</span><div>{years.slice(0,8).map(value=><button key={value} className={year===String(value)?'active':''} onClick={()=>{setYear(year===String(value)?'All years':String(value));document.getElementById('collection')?.scrollIntoView({behavior:'smooth'});}}>{value}<ArrowUpRight size={12}/></button>)}</div></div><div className="archive-editorial"><Film size={26}/><h3>More than<br/>a file name.</h3><p>IMAX, Open Matte, 35mm. Find the frame you’re looking for.</p><span>THE VITOENCODES STANDARD</span></div></aside>
           </div>
           <SiteFooter/>
         </main>
