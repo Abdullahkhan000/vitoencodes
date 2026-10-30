@@ -12,7 +12,7 @@ export const runtime='nodejs';export const maxDuration=60;
 const headers={'Cache-Control':'no-store'};
 async function setSession(state:Awaited<ReturnType<typeof securityState>>){const jar=await cookies();jar.set(SESSION_COOKIE,createSession(Date.now(),state.signing_secret,state.version,Boolean(state.enabled)),{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'strict',path:'/',maxAge:SESSION_SECONDS});}
 async function proveOwner(body:Record<string,unknown>,secondFactor=true){if(typeof body.adminToken!=='string'||!validAdminToken(body.adminToken))throw new Error('Confirm your current admin access key.');const state=await securityState();if(secondFactor&&state.enabled&&(typeof body.code!=='string'||body.code.length>128||!await verifySecondFactor(body.code.trim())))throw new Error('Enter a fresh authenticator or recovery code.');return state;}
-export async function GET(request:Request){if(!await authorized(request))return denied();try{
+export async function GET(request:Request){try{if(!await authorized(request))return denied();
  const query=new URL(request.url).searchParams,section=query.get('section')||'security';
  if(section==='security'){const state=await securityState(),captcha=turnstileConfig();return Response.json({...mfaSummary(state),turnstile:{required:captcha.required,ready:captcha.ready},syncTokenConfigured:Boolean(process.env.SYNC_TOKEN),alertsConfigured:Boolean(process.env.ALERT_WEBHOOK_URL),cronConfigured:Boolean(process.env.CRON_SECRET)},{headers});}
  if(section==='history')return Response.json({entries:await historyEntries()},{headers});
@@ -24,7 +24,7 @@ export async function GET(request:Request){if(!await authorized(request))return 
  if(section==='download'){const id=query.get('id')||'';return new Response(await backupPayload(id),{headers:{...headers,'Content-Type':'application/json','Content-Disposition':'attachment; filename="vitoencodes-'+id.replace(/[^a-zA-Z0-9-]/g,'')+'.vito-backup"'}});}
  return Response.json({error:'Unknown section.'},{status:400,headers});
  }catch(error){await recordError(error,'/api/admin/operations','admin').catch(()=>{});return Response.json({error:'Could not load these site tools.'},{status:503,headers});}}
-export async function POST(request:Request){if(!await authorized(request))return denied();try{
+export async function POST(request:Request){try{if(!await authorized(request))return denied();
  const text=await request.text();if(text.length>4*1024*1024)return Response.json({error:'Request too large.'},{status:413});const body=JSON.parse(text) as Record<string,unknown>;
  await consumeLimit('operations:'+clientKey(request),40,60000);
  let result:unknown;
