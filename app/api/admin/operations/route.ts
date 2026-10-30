@@ -1,3 +1,4 @@
+import {alertConfiguration,deliverAlert} from '../../../../lib/alerts';
 import {cookies} from 'next/headers';
 import {authorized,denied,validAdminToken,createSession,SESSION_COOKIE,SESSION_SECONDS} from '../../../../lib/auth';
 import {securityState,mfaSummary,verifySecondFactor,beginMfa,confirmMfa,disableMfa,revokeSessions} from '../../../../lib/mfa';
@@ -14,7 +15,7 @@ async function setSession(state:Awaited<ReturnType<typeof securityState>>){const
 async function proveOwner(body:Record<string,unknown>,secondFactor=true){if(typeof body.adminToken!=='string'||!validAdminToken(body.adminToken))throw new Error('Confirm your current admin access key.');const state=await securityState();if(secondFactor&&state.enabled&&(typeof body.code!=='string'||body.code.length>128||!await verifySecondFactor(body.code.trim())))throw new Error('Enter a fresh authenticator or recovery code.');return state;}
 export async function GET(request:Request){try{if(!await authorized(request))return denied();
  const query=new URL(request.url).searchParams,section=query.get('section')||'security';
- if(section==='security'){const state=await securityState(),captcha=turnstileConfig();return Response.json({...mfaSummary(state),turnstile:{required:captcha.required,ready:captcha.ready},syncTokenConfigured:Boolean(process.env.SYNC_TOKEN),alertsConfigured:Boolean(process.env.ALERT_WEBHOOK_URL),cronConfigured:Boolean(process.env.CRON_SECRET)},{headers});}
+ if(section==='security'){const state=await securityState(),captcha=turnstileConfig();return Response.json({...mfaSummary(state),turnstile:{required:captcha.required,ready:captcha.ready},syncTokenConfigured:Boolean(process.env.SYNC_TOKEN),...alertConfiguration(),cronConfigured:Boolean(process.env.CRON_SECRET)},{headers});}
  if(section==='history')return Response.json({entries:await historyEntries()},{headers});
  if(section==='links')return Response.json({checks:await linkHealth()},{headers});
  if(section==='quality')return Response.json({issues:await qualityReport()},{headers});
@@ -37,6 +38,7 @@ export async function POST(request:Request){try{if(!await authorized(request))re
   case 'bulk-apply':if(typeof body.previewToken!=='string')throw new Error('Preview the changes first.');result=await bulkEdit(body.ids,body.changes,body.previewToken);break;
   case 'undo':result=await undoEdit(String(body.id||''));break;
   case 'check-links':await consumeLimit('link-checks:global',3,60000);if(body.ids!==undefined&&(!Array.isArray(body.ids)||body.ids.length>20||body.ids.some(value=>typeof value!=='string'||value.length>500)))throw new Error('Select up to 20 releases.');result=await checkMirrors(body.ids as string[]|undefined);break;
+  case 'test-alert':await consumeLimit('test-alert:global',1,60000);result=await deliverAlert('VITOENCODES: test alert','This is a test alert from your VITOENCODES admin dashboard. No application failure occurred.');break;
   case 'resolve-error':await resolveError(String(body.id||''));result={resolved:true};break;
   case 'backup-create':result=await createRecoveryCopy();break;
   case 'backup-preview':if(typeof body.payload!=='string')throw new Error('Choose an encrypted backup file.');result=await restoreBackup(body.payload,undefined,typeof body.backupKey==='string'?body.backupKey:undefined);break;

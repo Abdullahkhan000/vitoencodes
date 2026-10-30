@@ -188,7 +188,7 @@ Skip db:import for a fresh database with no SQLite catalog. The importer opens S
 
 Unit tests run with disposable SQLite files and explicitly clear database URLs. The live test starts the production app, checks Postgres persistence, draft privacy, publishing, movie rendering, caches/settings, and contact/inbox resolution. It creates uniquely named temporary records and removes only those records when finished. The live test requires an applied schema and outbound database access.
 
-Current validation: 101 unit tests pass. The production build and isolated Neon Postgres security/recovery tests pass; migrations 001 and 002 are applied to production. See the site tools section for configuration that still requires your Cloudflare and Vercel account settings.
+Current validation: 107 unit tests pass. The production build and isolated Neon Postgres security/recovery tests pass; migrations 001 and 002 are applied to production. See the site tools section for configuration that still requires your Cloudflare and Vercel account settings.
 
 ### Main release, formats and genres
 
@@ -215,4 +215,11 @@ Traffic counts are daily aggregates for published movie views, mirror clicks and
 
 Public catalog responses use a lightweight, 60-second tagged cache; authenticated reads remain uncached, and successful catalog mutations invalidate the public cache. /api/catalog?q=John%20Wick&group=1&page=1&limit=24 supports paginated title/series search (maximum 100 per page). The current homepage still filters and paginates its lightweight index in the browser. Movie pages have canonical URLs and share metadata; /sitemap.xml and /robots.txt cover public indexing. Set SITE_URL after connecting your custom domain.
 
-Checks: npm test (101 passing), npm run typecheck, npm run build, npm audit (0 vulnerabilities). Nine platform tests additionally passed against an isolated Neon branch, including TOTP replay prevention, one-use recovery codes, stale bulk preview rejection, encrypted restore/undo, network target restrictions, privacy filtering and sanitized monitoring. All eight tool tabs and authenticator enrollment were exercised in Edge on desktop and mobile widths.
+Checks: npm test (107 passing), npm run typecheck, npm run build, npm audit (0 vulnerabilities). Nine platform tests additionally passed against an isolated Neon branch, including TOTP replay prevention, one-use recovery codes, stale bulk preview rejection, encrypted restore/undo, network target restrictions, privacy filtering and sanitized monitoring. All eight tool tabs and authenticator enrollment were exercised in Edge on desktop and mobile widths.
+
+
+### Email alerts
+
+App-error emails use Resend over its authenticated HTTPS API. Set server-only RESEND_API_KEY and ALERT_EMAIL_TO in Vercel. ALERT_EMAIL_FROM defaults to VITOENCODES <onboarding@resend.dev>; this testing sender can send only to the email associated with your Resend account. For production delivery to other recipients, verify your own sending domain and set ALERT_EMAIL_FROM accordingly. Redeploy, then use Studio > Site tools > Monitoring > Send test alert. The app checks provider acceptance and reports rejections; acceptance is not a guarantee of inbox delivery. The test action is admin-only and limited to one per minute. Repeated matching app errors are throttled for 15 minutes; notification text uses the existing secret redaction. Existing optional webhook alerts remain supported.
+
+UptimeRobot uptime monitoring is independent of app-error delivery. Its email-only setup request requires the owner to open the activation email and press Activate before a monitor exists. The monitored endpoint is https://vitoencodes-ten.vercel.app/api/health. No uptime API key or recipient address is committed to this repository. Check Vercel Firewall events if an external monitor receives a security challenge.
