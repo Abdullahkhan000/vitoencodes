@@ -20,8 +20,8 @@ export default async function Movie({params,searchParams}:{params:Promise<{id:st
  const alternatives=group?group.releases.map(r=>({...r,poster:poster(r.poster||'',r.id),codec:''})):[release];
  const card=(r:typeof published[number])=>({id:movieRouteId(r),title:movieTitle(r),year:r.year,category:r.category,resolution:r.resolution,size:r.size,poster:poster(r.poster||'',r.id),genres:r.details?.genres||''});
  const related=group?genreRecommendations(group.movie,published).map(card):[];
- const collection=group?movieCollection(group.movie):null;
  const collectionItems=group?collectionMovies(group.movie,published).map(card):[];
+ const collection=group&&collectionItems.length>=2?movieCollection(group.movie):null;
  return <MovieDetail movie={release} versions={alternatives} related={related} collection={collection} collectionItems={collectionItems} preview={!group}/>;
 }
 

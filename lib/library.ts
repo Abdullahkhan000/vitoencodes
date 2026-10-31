@@ -42,7 +42,7 @@ export function groupMovieReleases<T extends LibraryMovie>(rows:T[]):{movie:T;re
  }).sort((a,b)=>rows.findIndex(row=>a.releases.includes(row))-rows.findIndex(row=>b.releases.includes(row)));
 }
 function distinct<T extends LibraryMovie>(rows:T[]){return groupMovieReleases(rows).map(group=>group.movie);}
-export function collectionMovies<T extends LibraryMovie>(movie:LibraryMovie,rows:T[]){const group=movieCollection(movie);if(!group)return [];return distinct(rows.filter(row=>row.status==='published'&&movieCollection(row)?.slug===group.slug)).sort((a,b)=>(a.year||0)-(b.year||0)||a.title.localeCompare(b.title));}
+export function collectionMovies<T extends LibraryMovie>(movie:LibraryMovie,rows:T[]){const group=movieCollection(movie);if(!group)return [];const movies=distinct(rows.filter(row=>row.status==='published'&&movieCollection(row)?.slug===group.slug)).sort((a,b)=>(a.year||0)-(b.year||0)||a.title.localeCompare(b.title));return movies.length>=2?movies:[];}
 export function genreRecommendations<T extends LibraryMovie>(movie:LibraryMovie,rows:T[],limit=6){
  const genres=new Set(movieGenres(movie).map(normal));if(!genres.size)return [];
  const collection=movieCollection(movie)?.slug;
@@ -50,4 +50,4 @@ export function genreRecommendations<T extends LibraryMovie>(movie:LibraryMovie,
  .map(row=>({row,score:movieGenres(row).filter(genre=>genres.has(normal(genre))).length}))
  .filter(item=>item.score>0).sort((a,b)=>b.score-a.score||(b.row.year||0)-(a.row.year||0)||a.row.title.localeCompare(b.row.title)).slice(0,limit).map(item=>item.row);
 }
-export function availableCollections(rows:LibraryMovie[]){const groups=new Map<string,{slug:string;name:string;count:number;poster?:string}>();for(const row of distinct(rows.filter(r=>r.status==='published'))){const group=movieCollection(row);if(!group)continue;const found=groups.get(group.slug);if(found)found.count++;else groups.set(group.slug,{slug:group.slug,name:group.name,count:1,poster:row.poster});}return [...groups.values()].sort((a,b)=>a.name.localeCompare(b.name));}
+export function availableCollections(rows:LibraryMovie[]){const groups=new Map<string,{slug:string;name:string;count:number;poster?:string}>();for(const row of distinct(rows.filter(r=>r.status==='published'))){const group=movieCollection(row);if(!group)continue;const found=groups.get(group.slug);if(found)found.count++;else groups.set(group.slug,{slug:group.slug,name:group.name,count:1,poster:row.poster});}return [...groups.values()].filter(group=>group.count>=2).sort((a,b)=>a.name.localeCompare(b.name));}

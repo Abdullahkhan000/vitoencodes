@@ -48,3 +48,18 @@ test('official provider collections automatically group franchises without a gue
  const a=row('a','Different Titles',2001,'Action','published',{id:44,name:'Official Saga Collection'}),b=row('b','A Sequel',2005,'Action','published',{id:44,name:'Official Saga Collection'}),hidden=row('hidden','Private Sequel',2009,'Action','draft',{id:44,name:'Official Saga Collection'});
  assert.deepEqual(collectionMovies(a,[b,hidden,a]).map(r=>r.id),['a','b']);assert.equal(availableCollections([a,b,hidden])[0].count,2);
 });
+
+
+test('public collections require two different published films, not multiple encodes or a draft sequel',()=>{
+ const collection={id:81,name:'Threshold Saga Collection'};
+ const first={...row('one','The First Film',2020,'Action','published',collection),details:{collection,tmdbId:8101}};
+ const alternate={...first,id:'one-4k',resolution:'2160p'};
+ const sequel={...row('two','The Second Film',2024,'Action','published',collection),details:{collection,tmdbId:8102}};
+ const draft={...sequel,status:'draft'};
+ assert.deepEqual(availableCollections([first,alternate,draft]),[]);
+ assert.deepEqual(collectionMovies(first,[first,alternate,draft]),[]);
+ assert.equal(movieCollection(first)?.id,81,'metadata is retained for when another movie is published');
+ assert.equal(availableCollections([first,alternate,sequel])[0].count,2);
+ assert.deepEqual(collectionMovies(first,[first,alternate,sequel]).map(movie=>movie.id),['one','two']);
+ assert.deepEqual(availableCollections([first,alternate,{...sequel,status:'draft'}]),[],'unpublishing the sequel hides the collection again');
+});

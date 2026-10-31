@@ -15,8 +15,8 @@ export async function listReleases(publishedOnly=false,lightweight=false):Promis
  const db=await database();
  try{
   const order=db.postgres?'created_at DESC, sort_order DESC':'julianday(created_at) DESC, rowid DESC';
-  const lightKeys=['genres','genresEdited','officialTitle','tmdbId','collection','primaryReleaseId'];
-  const columns=lightweight?releaseColumns.replace('details',(db.postgres?"jsonb_strip_nulls(jsonb_build_object("+lightKeys.map(key=>"'"+key+"',details::jsonb->'"+key+"'").join(',')+"))::text":"json_object("+lightKeys.map(key=>"'"+key+"',json_extract(details,'$."+key+"')").join(',')+")")+' AS details'):releaseColumns;
+  const lightKeys=['genres','genresEdited','officialTitle','tmdbId','collection','primaryReleaseId','backdrop','tmdbRating','synopsis'];
+  const columns=lightweight?releaseColumns.replace('details',(db.postgres?"jsonb_strip_nulls(jsonb_build_object("+lightKeys.map(key=>"'"+key+"',"+(key==='synopsis'?"to_jsonb(left(details::jsonb->>'synopsis',280))":"details::jsonb->'"+key+"'")).join(',')+"))::text":"json_object("+lightKeys.map(key=>"'"+key+"',"+(key==='synopsis'?"substr(json_extract(details,'$.synopsis'),1,280)":"json_extract(details,'$."+key+"')")).join(',')+")")+' AS details'):releaseColumns;
   const rows=await db.prepare(`SELECT ${columns} FROM releases ${publishedOnly?"WHERE status='published'":''} ORDER BY ${order}`).all() as unknown as (Omit<Release,'links'|'details'>&{links:string;details:string})[];
   return rows.map(r=>({...r,source:classifySource(r.filename),encoder:detectEncoder(r.filename),links:JSON.parse(r.links),details:JSON.parse(r.details||'{}')}));
  }finally{await db.close();}
