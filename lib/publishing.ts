@@ -1,5 +1,6 @@
+import {queueReleaseNewsletter} from './newsletter.ts';
 import {snapshots,recordHistory} from './history.ts';
-﻿import {database} from './store.ts';
+import {database} from './store.ts';
 export async function changeVisibility(ids:string[],status:'draft'|'published') {
  if(!Array.isArray(ids)||!ids.length||ids.length>500||ids.some(id=>typeof id!=='string'||!id))throw new Error('Select between 1 and 500 releases.');
  if(status!=='draft'&&status!=='published')throw new Error('Choose draft or published visibility.');
@@ -19,6 +20,7 @@ export async function changeVisibility(ids:string[],status:'draft'|'published') 
   const update=db.prepare('UPDATE releases SET status=? WHERE id=?');
   for(const id of unique)(await update.run(status,id));
   await recordHistory(db,status==='published'?'Publish releases':'Unpublish releases',before,unique);
+  if(status==='published')for(const row of before)if(row.status!=='published')await queueReleaseNewsletter(db,String(row.id));
   (await db.exec('COMMIT'));return unique.length;
  }catch(error){if(db.isTransaction)(await db.exec('ROLLBACK'));throw error;}finally{(await db.close());}
 }

@@ -4,7 +4,7 @@ import {useEffect,useRef,useState} from 'react';
 type Verification={token:string;ready:boolean};
 type Widget={render:(container:HTMLElement,options:Record<string,unknown>)=>string;remove:(id:string)=>void;reset:(id:string)=>void};
 declare global{interface Window{turnstile?:Widget}}
-export default function Turnstile({action,onChange,resetKey=0}:{action:'admin_login'|'contact';onChange:(value:Verification)=>void;resetKey?:number}){
+export default function Turnstile({action,onChange,resetKey=0}:{action:'admin_login'|'contact'|'newsletter';onChange:(value:Verification)=>void;resetKey?:number}){
  const [config,setConfig]=useState<{siteKey:string;required:boolean;ready:boolean}|null>(null),[loaded,setLoaded]=useState(false),[error,setError]=useState('');
  const container=useRef<HTMLDivElement>(null),widget=useRef<string|null>(null),callback=useRef(onChange);
  useEffect(()=>{callback.current=onChange;},[onChange]);

@@ -1,3 +1,4 @@
+import {queueReleaseNewsletter} from './newsletter.ts';
 import {readHubDriveSettings} from './download-settings.ts';
 import {normalizeHubDriveLink} from './hubdrive.ts';
 import {detectEncoder,type Encoder} from './encoder.ts';
@@ -62,6 +63,7 @@ export async function updateRelease(id:string,title:string,links:Release['links'
    }
   }
   await recordHistory(db,'Edit release',before,affected);
+  if(status==='published'&&before.some(row=>row.id===id&&row.status!=='published'))await queueReleaseNewsletter(db,id);
   await db.exec('COMMIT');
   return result.changes>0;
  }catch(error){if(db.isTransaction)await db.exec('ROLLBACK');throw error;}
