@@ -4,8 +4,10 @@ import MobileNavigation from './components/mobile-navigation';
 import './globals.css';
 import './cinema.css';
 
+const baseUrl=siteUrl();
+
 export const metadata = {
-  metadataBase: new URL(siteUrl()),
+  metadataBase: new URL(baseUrl),
   openGraph: {
     siteName: 'VITOENCODES',
     type: 'website',
@@ -14,10 +16,41 @@ export const metadata = {
     card: 'summary_large_image' as const,
   },
   title: 'VITOENCODES — Cinema, preserved.',
-  description: 'The VITOENCODES cinema collection',
+  description: 'An independent movie encode archive featuring alternate editions, curated releases and detailed technical specifications.',
+};
+
+const organizationSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  '@id': baseUrl+'#organization',
+  name: 'VITOENCODES',
+  alternateName: 'VITO ENCODES',
+  url: baseUrl,
+  logo: baseUrl+'/icon.svg',
+  description: 'An independent movie encode archive featuring alternate editions, curated releases and detailed technical specifications.',
+  sameAs: [
+    'https://www.youtube.com/@VITOENCODES',
+    'https://www.instagram.com/VITOENCODES/',
+    'https://www.facebook.com/VITOENCODES/',
+  ],
+};
+
+const websiteSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  '@id': baseUrl+'#website',
+  name: 'VITOENCODES',
+  alternateName: 'VITO ENCODES',
+  url: baseUrl,
+  description: 'Cinema, preserved. Explore movie editions, encodes and release specifications from VITOENCODES.',
+  publisher: {'@id':baseUrl+'#organization'},
+  inLanguage: 'en',
 };
 
 export default function Layout({children}: {children: React.ReactNode}) {
+  const organizationJson=JSON.stringify(organizationSchema).replace(/</g,'\\u003c');
+  const websiteJson=JSON.stringify(websiteSchema).replace(/</g,'\\u003c');
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -28,6 +61,8 @@ export default function Layout({children}: {children: React.ReactNode}) {
       </head>
 
       <body>
+        <script type="application/ld+json" dangerouslySetInnerHTML={{__html:organizationJson}} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{__html:websiteJson}} />
         {children}
 
         <MobileNavigation />
