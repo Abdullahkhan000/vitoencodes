@@ -47,5 +47,26 @@ export default async function Collection({params}:{params:Promise<{slug:string}>
  const collection=await findPublishedCollection(slug);
  if(!collection)notFound();
  const {group,movies}=collection;
- return <div className="film-page" id="top"><SiteHeader/><main className="film-container collection-page"><span className="film-small-label">THE VITOENCODES COLLECTIONS</span><div className="collection-heading"><div><h1>{group.name}</h1><p>{movies.length} {movies.length===1?'movie':'movies'} available in the archive · In release order</p></div><Layers3 size={42}/></div><div className="collection-movie-grid">{movies.map(movie=><Link href={'/movies/'+encodeURIComponent(movieRouteId(movie))} key={movie.id}><div className="collection-movie-art">{movie.poster?<ResilientImage src={movie.poster} alt={movie.title+' poster'}/>:<Film size={50}/>}<span>{movie.year}</span></div><h2>{movieTitle(movie)}</h2><p>{movie.resolution} · {movie.category}<span>{movie.size}</span></p><ReleaseDates created_at={movie.created_at} updated_at={movie.updated_at}/><span className="collection-view">View encode <ArrowUpRight size={14}/></span></Link>)}</div><p className="film-info-note">Only movies published in this archive appear here. Alternate encodes are available on each movie’s detail page.</p><SiteFooter/></main></div>;
+ const pageUrl=siteUrl()+'/collections/'+encodeURIComponent(group.slug);
+ const schema={
+  '@context':'https://schema.org',
+  '@type':'CollectionPage',
+  '@id':pageUrl+'#collection',
+  name:group.name+' | VITOENCODES',
+  url:pageUrl,
+  description:'Explore '+movies.length+' films in the '+group.name+' collection at VITOENCODES.',
+  numberOfItems:movies.length,
+  mainEntity:{
+   '@type':'ItemList',
+   numberOfItems:movies.length,
+   itemListElement:movies.map((movie,index)=>({
+    '@type':'ListItem',
+    position:index+1,
+    name:movieTitle(movie),
+    url:siteUrl()+'/movies/'+encodeURIComponent(movieRouteId(movie)),
+   })),
+  },
+ };
+ const schemaJson=JSON.stringify(schema).replace(/</g,'\\u003c');
+ return <><script type="application/ld+json" dangerouslySetInnerHTML={{__html:schemaJson}}/><div className="film-page" id="top"><SiteHeader/><main className="film-container collection-page"><span className="film-small-label">THE VITOENCODES COLLECTIONS</span><div className="collection-heading"><div><h1>{group.name}</h1><p>{movies.length} {movies.length===1?'movie':'movies'} available in the archive · In release order</p></div><Layers3 size={42}/></div><div className="collection-movie-grid">{movies.map(movie=><Link href={'/movies/'+encodeURIComponent(movieRouteId(movie))} key={movie.id}><div className="collection-movie-art">{movie.poster?<ResilientImage src={movie.poster} alt={movie.title+' poster'}/>:<Film size={50}/>}<span>{movie.year}</span></div><h2>{movieTitle(movie)}</h2><p>{movie.resolution} · {movie.category}<span>{movie.size}</span></p><ReleaseDates created_at={movie.created_at} updated_at={movie.updated_at}/><span className="collection-view">View encode <ArrowUpRight size={14}/></span></Link>)}</div><p className="film-info-note">Only movies published in this archive appear here. Alternate encodes are available on each movie’s detail page.</p><SiteFooter/></main></div></>;
 }
