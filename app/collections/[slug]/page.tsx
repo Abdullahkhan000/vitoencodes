@@ -31,7 +31,8 @@ export async function generateMetadata({params}:{params:Promise<{slug:string}>})
  const title=group.name+' | Movie Collection | VITOENCODES';
  const description=('Explore '+movies.length+' films in the '+group.name+' collection. Browse available VITOENCODES editions, encode specifications and release details.').slice(0,160);
  const url=siteUrl()+'/collections/'+encodeURIComponent(group.slug);
- const rawImage=first.poster||'';\n const image=rawImage?(rawImage.startsWith('https://')?rawImage:rawImage.startsWith('/')?siteUrl()+rawImage:'https://image.tmdb.org/t/p/w780/'+rawImage):undefined;
+ const rawImage=first.poster||'';
+ const image=rawImage?(rawImage.startsWith('https://')?rawImage:rawImage.startsWith('/')?siteUrl()+rawImage:'https://image.tmdb.org/t/p/w780/'+rawImage):undefined;
  return {
   title,
   description,
